@@ -10,3 +10,6 @@ Readpair types that are considered are:
 - *outward\_facing*: The first read in the pair is aligned to the negative strand while the second is aligned to the positive strand.  Can indicate a duplication.
 - *long*: The two reads are in a standard orientation however the distance between them is outside the 99.9th percentile of all mapped read pairs in the sample BAM file.
 - *normal*: The two reads are in a standard orientation and are within the 99.9th percentile of all mapped read pairs in the sample BAM file.
+
+# License
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
