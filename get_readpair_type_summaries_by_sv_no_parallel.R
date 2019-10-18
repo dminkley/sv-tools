@@ -78,6 +78,35 @@ getCigarString <- function(cigar_data) {
   return(cigar_string)
 }
 
+# Given two reads (as align objects), return true or false depending on if each is respectively within
+#  flank_size bp of each sv_end
+align_pairs_from_diff_ends <- function(read_pair, sv_start, sv_end, flank_size) {
+  # Read one will always be the lowest of the two reads
+  if (rbamtools::position(read_pair[[1]]) <= rbamtools::position(read_pair[[2]])) {
+    r1 <- read_pair[[1]]
+    r2 <- read_pair[[2]]    
+  } else {
+    r1 <- read_pair[[2]]
+    r2 <- read_pair[[1]]   
+  }
+  
+  r1_start <- position(r1) + 1
+  r1_end <- position(r1) + cigarWidthAlongReferenceSpace(getCigarString(cigarData(r1)))
+  r2_start <- position(r2) + 1
+  r2_end <- position(r2) + cigarWidthAlongReferenceSpace(getCigarString(cigarData(r2)))
+  
+  if (r1_end < sv_start-flank_size || r1_start > sv_start+flank_size) {
+    return(FALSE)
+  }
+  
+  if (r2_end < sv_end-flank_size || r2_start > sv_end+flank_size) {
+    return(FALSE)
+  }
+  
+  return(TRUE)
+  
+}
+
 # Function to determine the 'type' for a given read pair
 # Note that internally, this converts to 1-based coordinates (from 0-based used by rbamtools)
 get_readpair_type <- function(good_read_pair, max_normal_insert_size) {
@@ -271,8 +300,14 @@ for (i in 1:nrow(vars.df)) {
     good_pairs.l <- readpairs.l[lapply(readpairs.l, length) == 2]
     flog.debug("\t\t\t%s read pairs were found where both reads were of interest", length(good_pairs.l))
     
+    # Need to make sure that for each pair, one read is close to the sv_start and one is close to the sv_end
+    good_pairs.close_to_each_end.l <- good_pairs.l[unlist(lapply(good_pairs.l, align_pairs_from_diff_ends, sv_start=sv_start, sv_end=sv_end,
+                                             flank_size=args_flank_size))]
+    flog.debug("\t\t\t%s of the read pairs of interest, %s had a read near each sv_end, seperately", length(good_pairs.close_to_each_end.l))
+    
+    
     # Get the readpair types of each good read pair
-    good_readpair_types <- unlist(lapply(good_pairs.l, get_readpair_type, max_normal_insert_size=max_normal_insert_size))
+    good_readpair_types <- unlist(lapply(good_pairs.close_to_each_end.l, get_readpair_type, max_normal_insert_size=max_normal_insert_size))
     
     # Count the number of each readpair type, and only append it to the others if the genotype for the current individual
     #  indicates the presence of at least one SV (non-reference) allele
